@@ -27,8 +27,7 @@ function parseQRPayload(qrValue: string): QRPayload {
   try {
     const parsed = JSON.parse(qrValue);
     // Handle different possible field names
-    const participantId =
-      parsed.participantId || parsed.Participant_ID || parsed.id;
+    const participantId = parsed.participantId || parsed.Participant_ID || parsed.id;
 
     if (!participantId) {
       throw new Error("No participant ID found in QR code");
@@ -50,12 +49,8 @@ function parseQRPayload(qrValue: string): QRPayload {
 }
 
 // API functions
-async function getParticipantInfo(
-  participantId: string,
-): Promise<ParticipantData> {
-  const response = await fetch(
-    `/api/get-info?participantId=${encodeURIComponent(participantId)}`,
-  );
+async function getParticipantInfo(participantId: string): Promise<ParticipantData> {
+  const response = await fetch(`/api/get-info?participantId=${encodeURIComponent(participantId)}`);
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -109,10 +104,9 @@ const DEBOUNCE_TIME = 3000;
 export default function QRScannerPage() {
   const [mode, setMode] = useState<ScannerMode>("checkin");
   const [scanStatus, setScanStatus] = useState<ScanStatus>("idle");
-  const [participantData, setParticipantData] =
-    useState<ParticipantData | null>(null);
+  const [participantData, setParticipantData] = useState<ParticipantData | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const [successMessage, setSuccessMessage] = useState<string>("");
+  const [_, setSuccessMessage] = useState<string>("");
   const lastScannedRef = useRef<{ id: string; timestamp: number } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -163,9 +157,7 @@ export default function QRScannerPage() {
       } catch (error) {
         setScanStatus("error");
         setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "Invalid QR code. Please try again.",
+          error instanceof Error ? error.message : "Invalid QR code. Please try again.",
         );
       } finally {
         setIsProcessing(false);
@@ -181,29 +173,20 @@ export default function QRScannerPage() {
     setScanStatus("loading");
 
     try {
-      const result = await registerParticipant(
-        participantData.participantId,
-        "CHECKIN",
-      );
+      const result = await registerParticipant(participantData.participantId, "CHECKIN");
 
       if (result.success) {
         setScanStatus("success");
         setSuccessMessage("Checked in successfully!");
-        setParticipantData((prev) =>
-          prev ? { ...prev, checkedIn: true } : null,
-        );
+        setParticipantData((prev) => (prev ? { ...prev, checkedIn: true } : null));
       } else {
         setScanStatus("error");
-        setErrorMessage(
-          result.message || "Check-in failed. Please contact Web Team Lead.",
-        );
+        setErrorMessage(result.message || "Check-in failed. Please contact Web Team Lead.");
       }
     } catch (error) {
       setScanStatus("error");
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Connection error. Please try again.",
+        error instanceof Error ? error.message : "Connection error. Please try again.",
       );
     } finally {
       setIsProcessing(false);
@@ -289,9 +272,7 @@ export default function QRScannerPage() {
           disabled
           className={cn(
             "flex-1 py-3 px-4 text-center font-medium transition-colors opacity-50 cursor-not-allowed",
-            mode === "food"
-              ? "border-b-2 border-red-600 text-red-600 bg-red-50"
-              : "text-gray-400",
+            mode === "food" ? "border-b-2 border-red-600 text-red-600 bg-red-50" : "text-gray-400",
           )}
         >
           Food
@@ -347,12 +328,7 @@ export default function QRScannerPage() {
           {scanStatus === "error" && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
               <div className="flex items-center gap-2 text-red-700 mb-3">
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -377,12 +353,7 @@ export default function QRScannerPage() {
           {scanStatus === "success" && participantData && (
             <div className="p-6 bg-green-50 border-2 border-green-500 rounded-lg">
               <div className="flex items-center justify-center gap-2 text-green-700 mb-4">
-                <svg
-                  className="w-12 h-12"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -391,9 +362,7 @@ export default function QRScannerPage() {
                   />
                 </svg>
               </div>
-              <h2 className="text-2xl font-bold text-center text-green-800 mb-2">
-                Checked In!
-              </h2>
+              <h2 className="text-2xl font-bold text-center text-green-800 mb-2">Checked In!</h2>
               <p className="text-center text-green-700 text-lg mb-4">
                 {participantData.firstName} {participantData.lastName}
               </p>
