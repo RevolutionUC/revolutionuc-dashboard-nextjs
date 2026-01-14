@@ -25,6 +25,8 @@ export function AuthHeader() {
           <Image
             src={session.user.image}
             alt={session.user.name || "User"}
+            width={32}
+            height={32}
             className="h-8 w-8 rounded-full"
           />
         )}
@@ -41,7 +43,10 @@ export function AuthHeader() {
 
   return (
     <header className="fixed top-0 right-0 z-50 p-4 flex items-center gap-3">
-      <Link href="/sign-in" className="text-sm font-medium hover:underline cursor-pointer">
+      <Link
+        href="/sign-in"
+        className="text-sm font-medium hover:underline cursor-pointer"
+      >
         Sign In
       </Link>
       <Link
