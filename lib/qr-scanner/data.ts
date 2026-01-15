@@ -5,12 +5,48 @@ export interface QRPayload {
 }
 
 export interface ParticipantData {
-  participantId: string;
+  uuid: string;
   firstName: string;
   lastName: string;
-  status: "CONFIRMED" | "WAITLISTED";
-  checkedIn: boolean;
-  metadata?: Record<string, unknown>;
+  email: string;
+  status: string | null;
+  checkedIn: boolean | null;
+  shirtSize: string;
+  dietRestrictions: string | null;
+}
+
+export interface EventData {
+  id: string;
+  name: string;
+  description: string | null;
+  eventType: string;
+  startTime: Date | null;
+  endTime: Date | null;
+  location: string | null;
+  capacity: number | null;
+}
+
+export interface RegistrationResult {
+  success: boolean;
+  message: string;
+  data?: {
+    participant?: {
+      uuid: string;
+      firstName: string;
+      lastName: string;
+    };
+    event?: {
+      id: string;
+      name: string;
+      eventType: string;
+    };
+    registeredAt?: Date;
+    uuid?: string;
+    firstName?: string;
+    lastName?: string;
+    status?: string | null;
+    checkedIn?: boolean | null;
+  };
 }
 
 export type ScanStatus = "idle" | "scanning" | "loading" | "success" | "error";
@@ -67,7 +103,7 @@ export function parseQRPayload(qrValue: string): QRPayload {
     const parsed = JSON.parse(qrValue);
     // Handle different possible field names
     const participantId =
-      parsed.participantId || parsed.Participant_ID || parsed.id;
+      parsed.participantId || parsed.Participant_ID || parsed.id || parsed.uuid;
 
     if (!participantId) {
       throw new Error("No participant ID found in QR code");
@@ -78,7 +114,7 @@ export function parseQRPayload(qrValue: string): QRPayload {
       metadata: parsed.metadata,
     };
   } catch {
-    // If not valid JSON, treat the raw value as the participant ID
+    // If not valid JSON, treat the raw value as the participant ID (UUID)
     if (qrValue && qrValue.trim()) {
       return {
         participantId: qrValue.trim(),
@@ -88,12 +124,14 @@ export function parseQRPayload(qrValue: string): QRPayload {
   }
 }
 
-// API functions
+/**
+ * Fetch participant info from the database by UUID
+ */
 export async function getParticipantInfo(
   participantId: string,
 ): Promise<ParticipantData> {
   const response = await fetch(
-    `/api/get-info?participantId=${encodeURIComponent(participantId)}`,
+    `/api/qr?id=${encodeURIComponent(participantId)}`,
   );
 
   if (!response.ok) {
@@ -101,43 +139,156 @@ export async function getParticipantInfo(
     if (response.status === 404) {
       throw new Error("No participant found for this QR code");
     }
-    throw new Error(errorData.message || "Failed to fetch participant info");
+    throw new Error(errorData.error || "Failed to fetch participant info");
   }
 
-  const data = await response.json();
-  return {
-    participantId,
-    firstName: data.FirstName,
-    lastName: data.LastName,
-    status: data.Status,
-    checkedIn: data.checkedIn ?? false,
-    metadata: data.participant_metadata,
-  };
+  const result = await response.json();
+  return result.data;
 }
 
-export async function registerParticipant(
+/**
+ * Fetch available events (workshops and food) from the database
+ */
+export async function getEvents(
+  type?: "WORKSHOP" | "FOOD" | "all",
+): Promise<{
+  events: EventData[];
+  grouped: { workshops: EventData[]; food: EventData[]; other: EventData[] };
+}> {
+  const url = type ? `/api/qr/events?type=${type}` : "/api/qr/events";
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || "Failed to fetch events");
+  }
+
+  const result = await response.json();
+  return result.data;
+}
+
+/**
+ * Register a participant for the main event check-in
+ * Updates the checkedIn column in the participants table
+ */
+export async function checkInParticipant(
   participantId: string,
-  eventId: string,
-): Promise<{ success: boolean; message: string }> {
-  const response = await fetch("/api/register", {
+): Promise<RegistrationResult> {
+  const response = await fetch("/api/qr", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
       participantId,
-      eventID: eventId,
+      mode: "checkin",
     }),
   });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || "Failed to register participant");
+  const data = await response.json();
+
+  if (!response.ok && response.status !== 409) {
+    throw new Error(data.error || "Failed to check in participant");
   }
 
-  const data = await response.json();
   return {
-    success: data.Message === "REGISTERED",
-    message: data.Message,
+    success: data.success ?? false,
+    message: data.message || data.error || "Unknown response",
+    data: data.data,
   };
+}
+
+/**
+ * Register a participant for a workshop event
+ * Creates a record in the eventRegistrations table
+ */
+export async function registerForWorkshop(
+  participantId: string,
+  eventId: string,
+): Promise<RegistrationResult> {
+  const response = await fetch("/api/qr", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      participantId,
+      mode: "workshop",
+      eventId,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok && response.status !== 409) {
+    throw new Error(data.error || "Failed to register for workshop");
+  }
+
+  return {
+    success: data.success ?? false,
+    message: data.message || data.error || "Unknown response",
+    data: data.data,
+  };
+}
+
+/**
+ * Register a participant for a food event
+ * Creates a record in the eventRegistrations table
+ */
+export async function registerForFood(
+  participantId: string,
+  eventId: string,
+): Promise<RegistrationResult> {
+  const response = await fetch("/api/qr", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      participantId,
+      mode: "food",
+      eventId,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok && response.status !== 409) {
+    throw new Error(data.error || "Failed to register for food");
+  }
+
+  return {
+    success: data.success ?? false,
+    message: data.message || data.error || "Unknown response",
+    data: data.data,
+  };
+}
+
+/**
+ * Generic registration function that handles all modes
+ * - checkin: Updates participants.checkedIn
+ * - workshop: Creates eventRegistrations record for WORKSHOP event
+ * - food: Creates eventRegistrations record for FOOD event
+ */
+export async function registerParticipant(
+  participantId: string,
+  mode: ScannerMode,
+  eventId?: string,
+): Promise<RegistrationResult> {
+  switch (mode) {
+    case "checkin":
+      return checkInParticipant(participantId);
+    case "workshop":
+      if (!eventId) {
+        throw new Error("Event ID is required for workshop registration");
+      }
+      return registerForWorkshop(participantId, eventId);
+    case "food":
+      if (!eventId) {
+        throw new Error("Event ID is required for food registration");
+      }
+      return registerForFood(participantId, eventId);
+    default:
+      throw new Error(`Invalid mode: ${mode}`);
+  }
 }

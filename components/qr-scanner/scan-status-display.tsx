@@ -2,24 +2,50 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { ParticipantData, ModeConfig } from "@/lib/qr-scanner/data";
+import type {
+  ParticipantData,
+  ModeConfig,
+  ScannerMode,
+  EventData,
+} from "@/lib/qr-scanner/data";
 
 interface ScanStatusDisplayProps {
   scanStatus: "idle" | "scanning" | "loading" | "success" | "error";
   participantData: ParticipantData | null;
   errorMessage: string;
+  successMessage: string;
   modeConfig: ModeConfig;
   isProcessing: boolean;
   onCheckIn: () => void;
   onCancel: () => void;
+  mode: ScannerMode;
+  selectedEvent?: EventData;
 }
 
-function IdleState() {
+function IdleState({ mode }: { mode: ScannerMode }) {
+  const getModeMessage = () => {
+    switch (mode) {
+      case "checkin":
+        return "Point your camera at a participant's QR code to check them in";
+      case "workshop":
+        return "Select a workshop above, then scan a participant's QR code";
+      case "food":
+        return "Select a food event above, then scan a participant's QR code";
+    }
+  };
+
   return (
     <div className="text-center p-6 bg-white rounded-lg shadow">
-      <p className="text-gray-600">
-        Point your camera at a participant&apos;s QR code to scan
-      </p>
+      <p className="text-gray-600">{getModeMessage()}</p>
+    </div>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div className="text-center p-6 bg-white rounded-lg shadow">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+      <p className="text-gray-600">Processing...</p>
     </div>
   );
 }
@@ -34,7 +60,12 @@ function ErrorState({
   return (
     <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
       <div className="flex items-center gap-2 text-red-700 mb-3">
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -59,14 +90,36 @@ function ErrorState({
 function SuccessState({
   participantData,
   onScanNext,
+  mode,
+  selectedEvent,
+  successMessage,
 }: {
   participantData: ParticipantData;
   onScanNext: () => void;
+  mode: ScannerMode;
+  selectedEvent?: EventData;
+  successMessage: string;
 }) {
+  const getSuccessTitle = () => {
+    switch (mode) {
+      case "checkin":
+        return "Checked In!";
+      case "workshop":
+        return "Registered for Workshop!";
+      case "food":
+        return "Registered for Food!";
+    }
+  };
+
   return (
     <div className="p-6 bg-green-50 border-2 border-green-500 rounded-lg">
       <div className="flex items-center justify-center gap-2 text-green-700 mb-4">
-        <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg
+          className="w-12 h-12"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -75,10 +128,22 @@ function SuccessState({
           />
         </svg>
       </div>
-      <h2 className="text-2xl font-bold text-center text-green-800 mb-2">Checked In!</h2>
-      <p className="text-center text-green-700 text-lg mb-4">
+      <h2 className="text-2xl font-bold text-center text-green-800 mb-2">
+        {getSuccessTitle()}
+      </h2>
+      <p className="text-center text-green-700 text-lg mb-2">
         {participantData.firstName} {participantData.lastName}
       </p>
+      {selectedEvent && (mode === "workshop" || mode === "food") && (
+        <p className="text-center text-green-600 text-sm mb-4">
+          {selectedEvent.name}
+        </p>
+      )}
+      {successMessage && (
+        <p className="text-center text-green-600 text-sm mb-4">
+          {successMessage}
+        </p>
+      )}
       <Button
         onClick={onScanNext}
         className="w-full bg-green-600 hover:bg-green-700 text-white"
@@ -95,13 +160,36 @@ function ScanningState({
   isProcessing,
   onCheckIn,
   onCancel,
+  mode,
+  selectedEvent,
 }: {
   participantData: ParticipantData;
   modeConfig: ModeConfig;
   isProcessing: boolean;
   onCheckIn: () => void;
   onCancel: () => void;
+  mode: ScannerMode;
+  selectedEvent?: EventData;
 }) {
+  const getActionButtonText = () => {
+    if (isProcessing) return "Processing...";
+    switch (mode) {
+      case "checkin":
+        return "Check In";
+      case "workshop":
+        return "Register for Workshop";
+      case "food":
+        return "Register for Food";
+    }
+  };
+
+  const isMainCheckinBlocked =
+    mode === "checkin" &&
+    (participantData.status === "WAITLISTED" || participantData.checkedIn);
+
+  const needsEventSelection =
+    (mode === "workshop" || mode === "food") && !selectedEvent;
+
   return (
     <div className="bg-white rounded-lg shadow-lg overflow-hidden">
       {/* Participant Header */}
@@ -109,28 +197,64 @@ function ScanningState({
         <h2 className="text-xl font-bold text-gray-800">
           {participantData.firstName} {participantData.lastName}
         </h2>
-        <div className="flex items-center gap-2 mt-2">
+        <p className="text-sm text-gray-600 mt-1">{participantData.email}</p>
+        <div className="flex flex-wrap items-center gap-2 mt-2">
           <span
             className={cn(
               "px-3 py-1 rounded-full text-sm font-medium",
               participantData.status === "CONFIRMED"
                 ? "bg-green-100 text-green-800"
-                : "bg-yellow-100 text-yellow-800"
+                : participantData.status === "WAITLISTED"
+                  ? "bg-yellow-100 text-yellow-800"
+                  : "bg-gray-100 text-gray-800",
             )}
           >
-            {participantData.status}
+            {participantData.status || "PENDING"}
           </span>
           {participantData.checkedIn && (
             <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-              Already Checked In
+              Checked In
             </span>
           )}
         </div>
       </div>
 
+      {/* Event Info for Workshop/Food modes */}
+      {selectedEvent && (mode === "workshop" || mode === "food") && (
+        <div className="px-4 py-3 bg-gray-50 border-t border-b">
+          <p className="text-sm font-medium text-gray-700">
+            {mode === "workshop" ? "Workshop:" : "Food Event:"}
+          </p>
+          <p className="text-base font-semibold text-gray-900">
+            {selectedEvent.name}
+          </p>
+          {selectedEvent.location && (
+            <p className="text-sm text-gray-600">{selectedEvent.location}</p>
+          )}
+        </div>
+      )}
+
+      {/* Additional Info */}
+      {(participantData.shirtSize || participantData.dietRestrictions) && (
+        <div className="px-4 py-3 bg-gray-50 border-b">
+          {participantData.shirtSize && (
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Shirt Size:</span>{" "}
+              {participantData.shirtSize}
+            </p>
+          )}
+          {participantData.dietRestrictions && (
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Diet:</span>{" "}
+              {participantData.dietRestrictions}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="p-4 space-y-3">
-        {participantData.status === "WAITLISTED" ? (
+        {mode === "checkin" && participantData.status === "WAITLISTED" && (
           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-yellow-800 text-center font-medium">
               ⚠️ This participant is on the waitlist
@@ -139,19 +263,38 @@ function ScanningState({
               Check-in is not available for waitlisted participants
             </p>
           </div>
-        ) : participantData.checkedIn ? (
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-blue-800 text-center font-medium">
-              ✓ This participant has already checked in
+        )}
+
+        {mode === "checkin" &&
+          participantData.checkedIn &&
+          participantData.status !== "WAITLISTED" && (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-blue-800 text-center font-medium">
+                ✓ This participant has already checked in
+              </p>
+            </div>
+          )}
+
+        {needsEventSelection && (
+          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-yellow-800 text-center font-medium">
+              ⚠️ Please select a{" "}
+              {mode === "workshop" ? "workshop" : "food event"} first
             </p>
           </div>
-        ) : (
+        )}
+
+        {!isMainCheckinBlocked && !needsEventSelection && (
           <Button
             onClick={onCheckIn}
             disabled={isProcessing}
-            className="w-full bg-green-600 hover:bg-green-700 text-white text-lg py-6"
+            className={cn(
+              "w-full text-white text-lg py-6",
+              modeConfig.bgColor,
+              modeConfig.hoverBg,
+            )}
           >
-            {isProcessing ? "Processing..." : "Check In"}
+            {getActionButtonText()}
           </Button>
         )}
 
@@ -172,13 +315,20 @@ export function ScanStatusDisplay({
   scanStatus,
   participantData,
   errorMessage,
+  successMessage,
   modeConfig,
   isProcessing,
   onCheckIn,
   onCancel,
+  mode,
+  selectedEvent,
 }: ScanStatusDisplayProps) {
+  if (scanStatus === "loading") {
+    return <LoadingState />;
+  }
+
   if (scanStatus === "idle") {
-    return <IdleState />;
+    return <IdleState mode={mode} />;
   }
 
   if (scanStatus === "error") {
@@ -186,7 +336,15 @@ export function ScanStatusDisplay({
   }
 
   if (scanStatus === "success" && participantData) {
-    return <SuccessState participantData={participantData} onScanNext={onCancel} />;
+    return (
+      <SuccessState
+        participantData={participantData}
+        onScanNext={onCancel}
+        mode={mode}
+        selectedEvent={selectedEvent}
+        successMessage={successMessage}
+      />
+    );
   }
 
   if (scanStatus === "scanning" && participantData) {
@@ -197,6 +355,8 @@ export function ScanStatusDisplay({
         isProcessing={isProcessing}
         onCheckIn={onCheckIn}
         onCancel={onCancel}
+        mode={mode}
+        selectedEvent={selectedEvent}
       />
     );
   }
