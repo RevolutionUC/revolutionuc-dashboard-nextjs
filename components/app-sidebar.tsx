@@ -23,16 +23,18 @@ const items = [
     url: "/qr",
     icon: Inbox,
   },
+
+  {
+    title: "Search",
+    url: "/search",
+    icon: Search,
+  },
   {
     title: "Calendar",
     url: "#",
     icon: Calendar,
   },
-  {
-    title: "Search",
-    url: "#",
-    icon: Search,
-  },
+
   {
     title: "Settings",
     url: "#",

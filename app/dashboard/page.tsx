@@ -1,4 +1,8 @@
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { participants } from "@/lib/db/schema";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -11,48 +15,99 @@ export default async function DashboardPage() {
     redirect("/sign-in");
   }
 
+  let stats:
+    | {
+        total: number;
+        confirmed: number;
+        waitlisted: number;
+        checkedIn: number;
+      }
+    | undefined;
+
+  try {
+    const row = await db
+      .select({
+        total: sql<number>`count(*)`,
+        confirmed: sql<number>`count(*) filter (where ${participants.status} = 'CONFIRMED')`,
+        waitlisted: sql<number>`count(*) filter (where ${participants.status} = 'WAITLISTED')`,
+        checkedIn: sql<number>`count(*) filter (where ${participants.checkedIn} = true)`,
+      })
+      .from(participants)
+      .then((r) => r[0]);
+
+    stats = {
+      total: Number(row?.total ?? 0),
+      confirmed: Number(row?.confirmed ?? 0),
+      waitlisted: Number(row?.waitlisted ?? 0),
+      checkedIn: Number(row?.checkedIn ?? 0),
+    };
+  } catch {
+    // Placeholder if DB/table isn't available yet.
+    stats = undefined;
+  }
+
+  const display = {
+    total: stats?.total ?? 0,
+    confirmed: stats?.confirmed ?? 0,
+    waitlisted: stats?.waitlisted ?? 0,
+    checkedIn: stats?.checkedIn ?? 0,
+    isPlaceholder: !stats,
+  };
+
   return (
-    <main className="p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome back, {session.user.name || session.user.email}!
-          </p>
-        </div>
+    <main className="p-6 sm:p-8">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">
+          Participants overview{" "}
+          {display.isPlaceholder ? "(placeholder data)" : ""}
+        </p>
+      </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-lg border bg-card p-6 shadow-sm">
-            <h3 className="font-semibold">Profile</h3>
-            <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-              <p>
-                <span className="font-medium text-foreground">Name:</span>{" "}
-                {session.user.name || "Not set"}
-              </p>
-              <p>
-                <span className="font-medium text-foreground">Email:</span> {session.user.email}
-              </p>
-              <p>
-                <span className="font-medium text-foreground">Verified:</span>{" "}
-                {session.user.emailVerified ? "Yes" : "No"}
-              </p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card">
+        <Card>
+          <CardHeader>
+            <CardTitle>Total participants</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-semibold tabular-nums">
+              {display.total}
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="rounded-lg border bg-card p-6 shadow-sm">
-            <h3 className="font-semibold">Session</h3>
-            <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-              <p>
-                <span className="font-medium text-foreground">Created:</span>{" "}
-                {new Date(session.session.createdAt).toLocaleDateString()}
-              </p>
-              <p>
-                <span className="font-medium text-foreground">Expires:</span>{" "}
-                {new Date(session.session.expiresAt).toLocaleDateString()}
-              </p>
+        <Card>
+          <CardHeader>
+            <CardTitle>Confirmed</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-semibold tabular-nums">
+              {display.confirmed}
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Waitlisted</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-semibold tabular-nums">
+              {display.waitlisted}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Checked in</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-semibold tabular-nums">
+              {display.checkedIn}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </main>
   );

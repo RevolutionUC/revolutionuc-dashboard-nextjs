@@ -1,17 +1,41 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 
 export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+
+  // Check if user is already authenticated
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const session = await authClient.getSession();
+        if (session?.data?.user) {
+          // User is already signed in, redirect to callback URL
+          router.push(callbackUrl);
+          return;
+        }
+      } catch {
+        // Not authenticated, continue to sign-in page
+      } finally {
+        setIsChecking(false);
+      }
+    };
+    checkSession();
+  }, [callbackUrl, router]);
 
   const handleGitHubSignIn = async () => {
     setIsLoading(true);
     try {
       await authClient.signIn.social({
         provider: "github",
-        callbackURL: "/dashboard",
+        callbackURL: callbackUrl,
         errorCallbackURL: "/error",
       });
     } catch (error) {
@@ -19,6 +43,14 @@ export default function SignInPage() {
       setIsLoading(false);
     }
   };
+
+  if (isChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">

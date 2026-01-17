@@ -1,4 +1,5 @@
-import { pgTable, text, boolean, timestamp, index, integer, uuid } from "drizzle-orm/pg-core";
+import { pgEnum, pgTable, text, boolean, timestamp, index, integer, uuid } from "drizzle-orm/pg-core";
+import { PARTICIPANT_STATUSES } from "@/lib/participant-status";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -70,6 +71,10 @@ export const verification = pgTable(
 // RevolutionUC Application Tables
 // ============================================
 
+export const participantStatus = pgEnum("participant_status", [
+  ...PARTICIPANT_STATUSES,
+]);
+
 export const participants = pgTable(
   "participants",
   {
@@ -95,7 +100,7 @@ export const participants = pgTable(
     referralSource: text("referral_source").array(),
     resumeUrl: text("resume_url"),
     qrBase64: text("qr_base64"),
-    status: text("status").default("PENDING"), // PENDING, CONFIRMED, WAITLISTED
+    status: participantStatus("status").notNull().default("PENDING"),
     checkedIn: boolean("checked_in").default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

@@ -2,7 +2,7 @@
 
 ## Todo:
 
-dashboard with live counts
-search
+~~dashboard with live counts~~
+~~search~~
 ~~auth layer~~
-qr code scanner for organizers
+~~qr code scanner for organizers~~ workshops and events still remain
