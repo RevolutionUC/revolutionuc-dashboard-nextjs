@@ -1,95 +1,4 @@
 "use client";
-import { useState, useCallback, useRef, useEffect } from "react";
-import { Scanner } from "@yudiel/react-qr-scanner";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-
-// Types
-interface QRPayload {
-  participantId: string;
-  metadata?: Record<string, unknown>;
-}
-
-interface ParticipantData {
-  participantId: string;
-  firstName: string;
-  lastName: string;
-  status: "PENDING" | "CONFIRMED" | "WAITLISTED";
-  checkedIn: boolean;
-  metadata?: Record<string, unknown>;
-}
-
-type ScanStatus = "idle" | "scanning" | "loading" | "success" | "error";
-type ScannerMode = "checkin" | "workshop" | "food";
-
-// Parse QR code payload - only contains participantId and metadata
-function parseQRPayload(qrValue: string): QRPayload {
-  try {
-    const parsed = JSON.parse(qrValue);
-    // Handle different possible field names
-    const participantId = parsed.participantId || parsed.Participant_ID || parsed.id;
-
-    if (!participantId) {
-      throw new Error("No participant ID found in QR code");
-    }
-
-    return {
-      participantId: String(participantId),
-      metadata: parsed.metadata,
-    };
-  } catch {
-    // If not valid JSON, treat the raw value as the participant ID
-    if (qrValue && qrValue.trim()) {
-      return {
-        participantId: qrValue.trim(),
-      };
-    }
-    throw new Error("Invalid QR code format");
-  }
-}
-
-// API functions
-async function getParticipantInfo(participantId: string): Promise<ParticipantData> {
-  const response = await fetch(`/api/get-info?participantId=${encodeURIComponent(participantId)}`);
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    if (response.status === 404) {
-      throw new Error("No participant found for this QR code");
-    }
-    throw new Error(errorData.message || "Failed to fetch participant info");
-  }
-
-  const data = await response.json();
-  return {
-    participantId,
-    firstName: data.FirstName,
-    lastName: data.LastName,
-    status: data.Status,
-    checkedIn: data.checkedIn ?? false,
-    metadata: data.participant_metadata,
-  };
-}
-
-async function registerParticipant(
-  participantId: string,
-  eventId: string,
-): Promise<{ success: boolean; message: string }> {
-  const response = await fetch("/api/register", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      participantId,
-      eventID: eventId,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || "Failed to register participant");
-  }
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { QRScanner, ScanResult } from "@/components/qr-scanner";
@@ -127,7 +36,7 @@ export default function QRScannerPage() {
   useEffect(() => {
     fetchEvents()
       .then(setEvents)
-      .catch((err) => console.error("Failed to load events:", err));
+      .catch((err: Error) => console.error("Failed to load events:", err));
   }, []);
 
   // Reset when mode changes
@@ -177,7 +86,7 @@ export default function QRScannerPage() {
         const data = await fetchParticipant(participantId);
         setParticipant(data);
         setStatus("scanning");
-      } catch (err) {
+      } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Invalid QR code");
         setStatus("error");
       } finally {
@@ -199,9 +108,11 @@ export default function QRScannerPage() {
       );
       setStatus("success");
       if (mode === "checkin") {
-        setParticipant((p) => (p ? { ...p, checkedIn: true } : null));
+        setParticipant((p: Participant | null) =>
+          p ? { ...p, checkedIn: true } : null,
+        );
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Registration failed");
       setStatus("error");
     } finally {
@@ -235,7 +146,7 @@ export default function QRScannerPage() {
               className={cn(
                 "flex-1 py-3 px-4 font-medium transition-colors",
                 isActive
-                  ? `border-b-2 ${c.borderClass} ${c.textClass} bg-${c.color}-50`
+                  ? `border-b-2 ${c.borderClass} ${c.textClass}`
                   : "text-gray-500 hover:text-gray-700",
               )}
             >
