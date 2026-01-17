@@ -14,7 +14,7 @@ interface ParticipantData {
   participantId: string;
   firstName: string;
   lastName: string;
-  status: "PENDING" | "CONFIRMED" | "WAITLISTED";
+  status: "PENDING" | "CONFIRMED" | "WAITLISTED" | "CHECKED_IN";
   checkedIn: boolean;
   metadata?: Record<string, unknown>;
 }
@@ -66,7 +66,7 @@ async function getParticipantInfo(participantId: string): Promise<ParticipantDat
     firstName: data.FirstName,
     lastName: data.LastName,
     status: data.Status,
-    checkedIn: data.checkedIn ?? false,
+    checkedIn: data.Status === "CHECKED_IN",
     metadata: data.participant_metadata,
   };
 }
@@ -178,7 +178,9 @@ export default function QRScannerPage() {
       if (result.success) {
         setScanStatus("success");
         setSuccessMessage("Checked in successfully!");
-        setParticipantData((prev) => (prev ? { ...prev, checkedIn: true } : null));
+        setParticipantData((prev) =>
+          prev ? { ...prev, status: "CHECKED_IN", checkedIn: true } : null,
+        );
       } else {
         setScanStatus("error");
         setErrorMessage(result.message || "Check-in failed. Please contact Web Team Lead.");
