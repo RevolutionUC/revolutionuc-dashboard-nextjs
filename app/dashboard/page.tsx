@@ -1,57 +1,56 @@
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { participants } from "@/lib/db/schema";
+"use client";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { sql } from "drizzle-orm";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 
-export default async function DashboardPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+interface DashboardStats {
+  total: number;
+  confirmed: number;
+  waitlisted: number;
+  checkedIn: number;
+}
 
-  if (!session) {
-    redirect("/sign-in");
-  }
+const POLL_INTERVAL = 5000; // 5 seconds
 
-  let stats:
-    | {
-        total: number;
-        confirmed: number;
-        waitlisted: number;
-        checkedIn: number;
+export default function DashboardPage() {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch("/api/dashboard/stats");
+      if (!response.ok) {
+        throw new Error("Failed to fetch stats");
       }
-    | undefined;
+      const data = await response.json();
+      setStats(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load stats");
+      console.error("Error fetching dashboard stats:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  try {
-    const row = await db
-      .select({
-        total: sql<number>`count(*)`,
-        confirmed: sql<number>`count(*) filter (where ${participants.status} = 'CONFIRMED')`,
-        waitlisted: sql<number>`count(*) filter (where ${participants.status} = 'WAITLISTED')`,
-        checkedIn: sql<number>`count(*) filter (where ${participants.checkedIn} = true)`,
-      })
-      .from(participants)
-      .then((r) => r[0]);
+  useEffect(() => {
+    // Fetch immediately on mount
+    fetchStats();
 
-    stats = {
-      total: Number(row?.total ?? 0),
-      confirmed: Number(row?.confirmed ?? 0),
-      waitlisted: Number(row?.waitlisted ?? 0),
-      checkedIn: Number(row?.checkedIn ?? 0),
-    };
-  } catch {
-    // Placeholder if DB/table isn't available yet.
-    stats = undefined;
-  }
+    // Set up polling interval
+    const interval = setInterval(fetchStats, POLL_INTERVAL);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
+  }, []);
 
   const display = {
     total: stats?.total ?? 0,
     confirmed: stats?.confirmed ?? 0,
     waitlisted: stats?.waitlisted ?? 0,
     checkedIn: stats?.checkedIn ?? 0,
-    isPlaceholder: !stats,
+    isPlaceholder: !stats && !isLoading,
   };
 
   return (
@@ -59,8 +58,9 @@ export default async function DashboardPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
         <p className="text-sm text-muted-foreground">
-          Participants overview{" "}
-          {display.isPlaceholder ? "(placeholder data)" : ""}
+          Participants overview {display.isPlaceholder ? "(placeholder data)" : ""}
+          {isLoading && !stats && " (loading...)"}
+          {error && ` (error: ${error})`}
         </p>
       </div>
 
@@ -70,9 +70,7 @@ export default async function DashboardPage() {
             <CardTitle>Total participants</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-semibold tabular-nums">
-              {display.total}
-            </div>
+            <div className="text-3xl font-semibold tabular-nums">{display.total}</div>
           </CardContent>
         </Card>
 
@@ -81,9 +79,7 @@ export default async function DashboardPage() {
             <CardTitle>Confirmed</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-semibold tabular-nums">
-              {display.confirmed}
-            </div>
+            <div className="text-3xl font-semibold tabular-nums">{display.confirmed}</div>
           </CardContent>
         </Card>
 
@@ -92,9 +88,7 @@ export default async function DashboardPage() {
             <CardTitle>Waitlisted</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-semibold tabular-nums">
-              {display.waitlisted}
-            </div>
+            <div className="text-3xl font-semibold tabular-nums">{display.waitlisted}</div>
           </CardContent>
         </Card>
 
@@ -103,9 +97,7 @@ export default async function DashboardPage() {
             <CardTitle>Checked in</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-semibold tabular-nums">
-              {display.checkedIn}
-            </div>
+            <div className="text-3xl font-semibold tabular-nums">{display.checkedIn}</div>
           </CardContent>
         </Card>
       </div>
