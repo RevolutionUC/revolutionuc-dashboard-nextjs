@@ -3,17 +3,32 @@ import { participants, events, eventRegistrations } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
-/**
- * GET /api/qr
- * Retrieve participant information by QR code (participant UUID)
- * Query params:
- *   - id: participant UUID (required)
- */
+// GET /api/qr - Get participant info or events list
 export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const participantId = searchParams.get("id");
+  const { searchParams } = new URL(request.url);
+  const participantId = searchParams.get("id");
+  const action = searchParams.get("action");
 
+  try {
+    // Fetch events list
+    if (action === "events") {
+      const eventsList = await db
+        .select({
+          id: events.id,
+          name: events.name,
+          description: events.description,
+          eventType: events.eventType,
+          location: events.location,
+        })
+        .from(events);
+
+      return NextResponse.json({
+        workshops: eventsList.filter((e) => e.eventType === "WORKSHOP"),
+        food: eventsList.filter((e) => e.eventType === "FOOD"),
+      });
+    }
+
+    // Fetch participant info
     if (!participantId) {
       return NextResponse.json(
         { error: "Missing participant ID" },
@@ -21,7 +36,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const participant = await db
+    const [participant] = await db
       .select({
         uuid: participants.uuid,
         firstName: participants.firstName,
@@ -36,149 +51,91 @@ export async function GET(request: NextRequest) {
       .where(eq(participants.uuid, participantId))
       .limit(1);
 
-    if (participant.length === 0) {
+    if (!participant) {
       return NextResponse.json(
         { error: "Participant not found" },
         { status: 404 },
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: participant[0],
-    });
+    return NextResponse.json(participant);
   } catch (error) {
-    console.error("Error fetching participant:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    console.error("QR API error:", error);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
-/**
- * POST /api/qr
- * Handle check-ins and event registrations
- * Body:
- *   - participantId: participant UUID (required)
- *   - mode: "checkin" | "workshop" | "food" (required)
- *   - eventId: event UUID (required for workshop/food modes)
- */
+// POST /api/qr - Check-in or register for event
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { participantId, mode, eventId } = body;
+    const { participantId, mode, eventId } = await request.json();
 
-    if (!participantId) {
+    if (!participantId || !mode) {
       return NextResponse.json(
-        { error: "Missing participant ID" },
+        { error: "Missing required fields" },
         { status: 400 },
       );
     }
 
-    if (!mode || !["checkin", "workshop", "food"].includes(mode)) {
-      return NextResponse.json(
-        {
-          error:
-            "Invalid or missing mode. Must be 'checkin', 'workshop', or 'food'",
-        },
-        { status: 400 },
-      );
-    }
-
-    // Find the participant
-    const existingParticipant = await db
+    // Find participant
+    const [participant] = await db
       .select()
       .from(participants)
       .where(eq(participants.uuid, participantId))
       .limit(1);
 
-    if (existingParticipant.length === 0) {
+    if (!participant) {
       return NextResponse.json(
         { error: "Participant not found" },
         { status: 404 },
       );
     }
 
-    const participant = existingParticipant[0];
-
-    // Handle main event check-in (updates participants table)
+    // Main check-in
     if (mode === "checkin") {
-      // Check if already checked in
       if (participant.checkedIn) {
         return NextResponse.json(
-          {
-            success: false,
-            message: "Participant already checked in",
-            data: {
-              uuid: participant.uuid,
-              firstName: participant.firstName,
-              lastName: participant.lastName,
-              status: participant.status,
-              checkedIn: participant.checkedIn,
-            },
-          },
+          { error: "Already checked in" },
           { status: 409 },
         );
       }
 
-      // Update check-in status in participants table
-      const updatedParticipant = await db
+      await db
         .update(participants)
-        .set({
-          checkedIn: true,
-          updatedAt: new Date(),
-        })
-        .where(eq(participants.uuid, participantId))
-        .returning({
-          uuid: participants.uuid,
-          firstName: participants.firstName,
-          lastName: participants.lastName,
-          status: participants.status,
-          checkedIn: participants.checkedIn,
-        });
+        .set({ checkedIn: true, updatedAt: new Date() })
+        .where(eq(participants.uuid, participantId));
 
       return NextResponse.json({
-        success: true,
-        message: "Participant checked in successfully",
-        data: updatedParticipant[0],
+        message: "Checked in successfully",
+        participant: {
+          firstName: participant.firstName,
+          lastName: participant.lastName,
+        },
       });
     }
 
-    // Handle workshop/food registration (uses eventRegistrations table)
+    // Workshop/Food registration
     if (mode === "workshop" || mode === "food") {
       if (!eventId) {
         return NextResponse.json(
-          { error: "Event ID is required for workshop/food registration" },
+          { error: "Event ID required" },
           { status: 400 },
         );
       }
 
-      // Verify the event exists and matches the mode
-      const event = await db
+      // Check event exists
+      const [event] = await db
         .select()
         .from(events)
         .where(eq(events.id, eventId))
         .limit(1);
 
-      if (event.length === 0) {
+      if (!event) {
         return NextResponse.json({ error: "Event not found" }, { status: 404 });
       }
 
-      const eventData = event[0];
-      const expectedEventType = mode === "workshop" ? "WORKSHOP" : "FOOD";
-
-      if (eventData.eventType !== expectedEventType) {
-        return NextResponse.json(
-          {
-            error: `Event type mismatch. Expected ${expectedEventType} but got ${eventData.eventType}`,
-          },
-          { status: 400 },
-        );
-      }
-
-      // Check if participant is already registered for this event
-      const existingRegistration = await db
+      // Check if already registered
+      const [existing] = await db
         .select()
         .from(eventRegistrations)
         .where(
@@ -189,95 +146,41 @@ export async function POST(request: NextRequest) {
         )
         .limit(1);
 
-      if (existingRegistration.length > 0) {
+      if (existing) {
         return NextResponse.json(
-          {
-            success: false,
-            message: `Participant already registered for this ${mode}`,
-            data: {
-              participant: {
-                uuid: participant.uuid,
-                firstName: participant.firstName,
-                lastName: participant.lastName,
-              },
-              event: {
-                id: eventData.id,
-                name: eventData.name,
-                eventType: eventData.eventType,
-              },
-              registeredAt: existingRegistration[0].registeredAt,
-            },
-          },
+          { error: "Already registered for this event" },
           { status: 409 },
         );
       }
 
-      // Check event capacity if defined
-      if (eventData.capacity !== null) {
-        const registrationCount = await db
+      // Check capacity
+      if (event.capacity) {
+        const registrations = await db
           .select()
           .from(eventRegistrations)
           .where(eq(eventRegistrations.eventId, eventId));
 
-        if (registrationCount.length >= eventData.capacity) {
-          return NextResponse.json(
-            {
-              success: false,
-              message: "Event is at full capacity",
-              data: {
-                event: {
-                  id: eventData.id,
-                  name: eventData.name,
-                  capacity: eventData.capacity,
-                  currentRegistrations: registrationCount.length,
-                },
-              },
-            },
-            { status: 409 },
-          );
+        if (registrations.length >= event.capacity) {
+          return NextResponse.json({ error: "Event is full" }, { status: 409 });
         }
       }
 
-      // Create the registration
-      const newRegistration = await db
-        .insert(eventRegistrations)
-        .values({
-          participantId: participantId,
-          eventId: eventId,
-        })
-        .returning();
+      // Register
+      await db.insert(eventRegistrations).values({ participantId, eventId });
 
       return NextResponse.json({
-        success: true,
-        message: `Successfully registered for ${eventData.name}`,
-        data: {
-          participant: {
-            uuid: participant.uuid,
-            firstName: participant.firstName,
-            lastName: participant.lastName,
-          },
-          event: {
-            id: eventData.id,
-            name: eventData.name,
-            eventType: eventData.eventType,
-          },
-          registeredAt: newRegistration[0].registeredAt,
+        message: `Registered for ${event.name}`,
+        participant: {
+          firstName: participant.firstName,
+          lastName: participant.lastName,
         },
+        event: { name: event.name },
       });
     }
 
     return NextResponse.json({ error: "Invalid mode" }, { status: 400 });
   } catch (error) {
-    console.error("Error processing QR scan:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    console.error("QR API error:", error);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
-
-/**
- * GET /api/qr/events
- * Get all available events (for dropdown selection in scanner UI)
- * This is handled by a separate route file: /api/qr/events/route.ts
- */
