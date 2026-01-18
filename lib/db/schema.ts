@@ -1,4 +1,13 @@
-import { pgEnum, pgTable, text, boolean, timestamp, index, integer, uuid } from "drizzle-orm/pg-core";
+import {
+  pgEnum,
+  pgTable,
+  text,
+  boolean,
+  timestamp,
+  index,
+  integer,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { PARTICIPANT_STATUSES } from "@/lib/participant-status";
 
 export const user = pgTable("user", {
@@ -71,15 +80,13 @@ export const verification = pgTable(
 // RevolutionUC Application Tables
 // ============================================
 
-export const participantStatus = pgEnum("participant_status", [
-  ...PARTICIPANT_STATUSES,
-]);
+export const participantStatus = pgEnum("participant_status", [...PARTICIPANT_STATUSES]);
 
 export const participants = pgTable(
   "participants",
   {
-    uuid: uuid("uuid").primaryKey().defaultRandom(),
-    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    user_id: uuid("uuid").primaryKey().defaultRandom(),
+    // userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
     firstName: text("first_name").notNull(),
     lastName: text("last_name").notNull(),
     email: text("email").notNull().unique(),
@@ -87,7 +94,7 @@ export const participants = pgTable(
     age: integer("age").notNull(),
     gender: text("gender").notNull(),
     school: text("school").notNull(),
-    graduationYear: integer("graduation_year").notNull(),
+    // graduationYear: integer("graduation_year").notNull(),
     levelOfStudy: text("level_of_study").notNull(),
     country: text("country").notNull(),
     major: text("major").notNull(),
@@ -108,7 +115,7 @@ export const participants = pgTable(
   (table) => [
     index("participants_email_idx").on(table.email),
     index("participants_status_idx").on(table.status),
-    index("participants_userId_idx").on(table.userId),
+    index("participants_userId_idx").on(table.user_id),
   ],
 );
 
@@ -132,17 +139,18 @@ export const events = pgTable(
 export const eventRegistrations = pgTable(
   "event_registrations",
   {
+    // unique index for evernts regsitration table
     id: uuid("id").primaryKey().defaultRandom(),
-    participantId: uuid("participant_id")
+    user_id: uuid("participant_id")
       .notNull()
-      .references(() => participants.uuid, { onDelete: "cascade" }),
+      .references(() => participants.user_id, { onDelete: "cascade" }),
     eventId: uuid("event_id")
       .notNull()
       .references(() => events.id, { onDelete: "cascade" }),
     registeredAt: timestamp("registered_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index("event_registrations_participant_idx").on(table.participantId),
+    index("event_registrations_participant_idx").on(table.user_id),
     index("event_registrations_event_idx").on(table.eventId),
   ],
 );
