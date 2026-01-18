@@ -1,5 +1,5 @@
 export const PARTICIPANT_STATUSES = [
-  "PENDING",
+  "REGISTERED",
   "CONFIRMED",
   "WAITLISTED",
   "CHECKED_IN",

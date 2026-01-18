@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 // GET /api/qr - Get participant info or events list
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const participantId = searchParams.get("id");
+  const user_id = searchParams.get("id");
   const action = searchParams.get("action");
 
   try {
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch participant info
-    if (!participantId) {
+    if (!user_id) {
       return NextResponse.json(
         { error: "Missing participant ID" },
         { status: 400 },
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     const [participant] = await db
       .select({
-        uuid: participants.user_id,
+        user_id: participants.user_id,
         firstName: participants.firstName,
         lastName: participants.lastName,
         email: participants.email,
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
         dietRestrictions: participants.dietRestrictions,
       })
       .from(participants)
-      .where(eq(participants.user_id, participantId))
+      .where(eq(participants.user_id, user_id))
       .limit(1);
 
     if (!participant) {
@@ -68,9 +68,9 @@ export async function GET(request: NextRequest) {
 // POST /api/qr - Check-in or register for event
 export async function POST(request: NextRequest) {
   try {
-    const { participantId, mode, eventId } = await request.json();
+    const { user_id, mode, eventId } = await request.json();
 
-    if (!participantId || !mode) {
+    if (!user_id || !mode) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 },
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     const [participant] = await db
       .select()
       .from(participants)
-      .where(eq(participants.user_id, participantId))
+      .where(eq(participants.user_id, user_id))
       .limit(1);
 
     if (!participant) {
@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
 
       await db
         .update(participants)
-        .set({ checkedIn: true, updatedAt: new Date() })
-        .where(eq(participants.user_id, participantId));
+        .set({ checkedIn: true, status: "CHECKED_IN", updatedAt: new Date() })
+        .where(eq(participants.user_id, user_id));
 
       return NextResponse.json({
         message: "Checked in successfully",
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
         .from(eventRegistrations)
         .where(
           and(
-            eq(eventRegistrations.participantId, participantId),
+            eq(eventRegistrations.user_id, user_id),
             eq(eventRegistrations.eventId, eventId),
           ),
         )
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Register
-      await db.insert(eventRegistrations).values({ participantId, eventId });
+      await db.insert(eventRegistrations).values({ user_id, eventId });
 
       return NextResponse.json({
         message: `Registered for ${event.name}`,

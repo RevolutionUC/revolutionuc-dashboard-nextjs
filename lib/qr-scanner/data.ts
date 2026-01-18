@@ -57,7 +57,7 @@ export function parseQRCode(value: string): string {
 }
 
 // API functions
-export async function fetchParticipant(id: string): Promise<Participant> {
+export async function fetchUser(id: string): Promise<Participant> {
   const res = await fetch(`/api/qr?id=${encodeURIComponent(id)}`);
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -76,14 +76,14 @@ export async function fetchEvents(): Promise<{
 }
 
 export async function registerScan(
-  participantId: string,
+  user_id: string,
   mode: ScannerMode,
   eventId?: string,
 ): Promise<{ message: string }> {
   const res = await fetch("/api/qr", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ participantId, mode, eventId }),
+    body: JSON.stringify({ user_id, mode, eventId }),
   });
 
   const data = await res.json();

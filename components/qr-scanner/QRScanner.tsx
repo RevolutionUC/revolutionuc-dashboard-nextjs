@@ -11,6 +11,8 @@ export function QRScanner({ onScan, disabled }: QRScannerProps) {
   return (
     <div className="relative w-full max-w-md mx-auto aspect-square bg-black rounded-lg overflow-hidden">
       <Scanner
+        // do not enable
+        sound={false}
         onScan={(codes) => {
           if (codes.length > 0 && !disabled) {
             onScan(codes[0].rawValue);

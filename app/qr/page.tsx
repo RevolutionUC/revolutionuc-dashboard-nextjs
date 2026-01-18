@@ -9,9 +9,9 @@ import {
   type Event,
   MODE_CONFIG,
   parseQRCode,
-  fetchParticipant,
   fetchEvents,
   registerScan,
+  fetchUser,
 } from "@/lib/qr-scanner/data";
 import { cn } from "@/lib/utils";
 
@@ -82,8 +82,8 @@ export default function QRScannerPage() {
       setError(null);
 
       try {
-        const participantId = parseQRCode(rawValue);
-        const data = await fetchParticipant(participantId);
+        const user_id = parseQRCode(rawValue);
+        const data = await fetchUser(user_id);
         setParticipant(data);
         setStatus("scanning");
       } catch (err: unknown) {
@@ -109,7 +109,7 @@ export default function QRScannerPage() {
       setStatus("success");
       if (mode === "checkin") {
         setParticipant((p: Participant | null) =>
-          p ? { ...p, checkedIn: true } : null,
+          p ? { ...p, checkedIn: true, status: "CHECKED_IN" } : null,
         );
       }
     } catch (err: unknown) {

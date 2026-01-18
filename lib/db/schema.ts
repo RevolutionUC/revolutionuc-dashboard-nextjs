@@ -121,7 +121,7 @@ export const participants = pgTable(
     referralSource: text("referral_source").array(),
     resumeUrl: text("resume_url"),
     qrBase64: text("qr_base64"),
-    status: participantStatus("status").notNull().default("PENDING"),
+    status: participantStatus("status").notNull().default("REGISTERED"),
     checkedIn: boolean("checked_in").default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
