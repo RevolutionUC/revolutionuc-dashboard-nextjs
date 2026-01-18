@@ -35,13 +35,16 @@ export default async function Search({
 
   const whereClause =
     q.length > 0
-      ? or(ilike(participants.firstName, `%${q}%`), ilike(participants.lastName, `%${q}%`))
+      ? or(
+          ilike(participants.firstName, `%${q}%`),
+          ilike(participants.lastName, `%${q}%`),
+        )
       : undefined;
 
   const [rows, totalRow] = await Promise.all([
     db
       .select({
-        uuid: participants.uuid,
+        user_id: participants.user_id,
         firstName: participants.firstName,
         lastName: participants.lastName,
         email: participants.email,
@@ -49,7 +52,7 @@ export default async function Search({
         age: participants.age,
         gender: participants.gender,
         school: participants.school,
-        graduationYear: participants.graduationYear,
+        // graduationYear: participants.graduationYear,
         levelOfStudy: participants.levelOfStudy,
         country: participants.country,
         major: participants.major,
@@ -95,8 +98,8 @@ export default async function Search({
         <div>
           <h1 className="text-2xl font-semibold">Participants</h1>
           <p className="text-sm text-muted-foreground">
-            Showing {(safePage - 1) * PAGE_SIZE + 1}-{Math.min(safePage * PAGE_SIZE, total)} of{" "}
-            {total}
+            Showing {(safePage - 1) * PAGE_SIZE + 1}-
+            {Math.min(safePage * PAGE_SIZE, total)} of {total}
           </p>
         </div>
 
@@ -108,7 +111,9 @@ export default async function Search({
             <PaginationItem>
               <PaginationPrevious
                 href={hasPrev ? pageHrefWithQuery(safePage - 1) : "#"}
-                className={!hasPrev ? "pointer-events-none opacity-50" : undefined}
+                className={
+                  !hasPrev ? "pointer-events-none opacity-50" : undefined
+                }
               />
             </PaginationItem>
 
@@ -129,7 +134,9 @@ export default async function Search({
             <PaginationItem>
               <PaginationNext
                 href={hasNext ? pageHrefWithQuery(safePage + 1) : "#"}
-                className={!hasNext ? "pointer-events-none opacity-50" : undefined}
+                className={
+                  !hasNext ? "pointer-events-none opacity-50" : undefined
+                }
               />
             </PaginationItem>
           </PaginationContent>
@@ -143,13 +150,18 @@ export default async function Search({
           </div>
         ) : (
           rows.map((p) => (
-            <details key={p.uuid} className="group overflow-hidden rounded-lg border">
+            <details
+              key={p.user_id}
+              className="group overflow-hidden rounded-lg border"
+            >
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">
                     {p.firstName} {p.lastName}
                   </div>
-                  <div className="truncate text-xs text-muted-foreground">{p.email}</div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {p.email}
+                  </div>
                   <div className="mt-1 hidden truncate text-xs text-muted-foreground sm:block">
                     {p.phone} · {p.school}
                   </div>
@@ -159,8 +171,10 @@ export default async function Search({
                     {(p.checkedIn ? "Checked in" : "Not checked in") + " ·"}
                   </span>
                   <ParticipantStatusMenu
-                    participantId={p.uuid}
-                    currentStatus={isParticipantStatus(p.status) ? p.status : "PENDING"}
+                    participantId={p.user_id}
+                    currentStatus={
+                      isParticipantStatus(p.status) ? p.status : "PENDING"
+                    }
                   />
                 </div>
               </summary>
@@ -184,10 +198,6 @@ export default async function Search({
                     <div className="wrap-break-word">{p.gender}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-muted-foreground">Grad year</div>
-                    <div>{p.graduationYear}</div>
-                  </div>
-                  <div>
                     <div className="text-xs text-muted-foreground">Level</div>
                     <div className="wrap-break-word">{p.levelOfStudy}</div>
                   </div>
@@ -200,20 +210,30 @@ export default async function Search({
                     <div className="wrap-break-word">{p.country}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-muted-foreground">Shirt size</div>
+                    <div className="text-xs text-muted-foreground">
+                      Shirt size
+                    </div>
                     <div className="wrap-break-word">{p.shirtSize}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-muted-foreground">Diet restrictions</div>
-                    <div className="wrap-break-word">{p.dietRestrictions ?? "-"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Diet restrictions
+                    </div>
+                    <div className="wrap-break-word">
+                      {p.dietRestrictions ?? "-"}
+                    </div>
                   </div>
                   <div className="sm:col-span-2">
-                    <div className="text-xs text-muted-foreground">Hackathons</div>
+                    <div className="text-xs text-muted-foreground">
+                      Hackathons
+                    </div>
                     <div className="wrap-break-word">{p.hackathons}</div>
                   </div>
                   <div className="grid gap-2 sm:col-span-2 sm:grid-cols-3">
                     <div>
-                      <div className="text-xs text-muted-foreground">LinkedIn</div>
+                      <div className="text-xs text-muted-foreground">
+                        LinkedIn
+                      </div>
                       {p.linkedinUrl ? (
                         <a className="break-all underline" href={p.linkedinUrl}>
                           {p.linkedinUrl}
@@ -223,7 +243,9 @@ export default async function Search({
                       )}
                     </div>
                     <div>
-                      <div className="text-xs text-muted-foreground">GitHub</div>
+                      <div className="text-xs text-muted-foreground">
+                        GitHub
+                      </div>
                       {p.githubUrl ? (
                         <a className="break-all underline" href={p.githubUrl}>
                           {p.githubUrl}
@@ -233,7 +255,9 @@ export default async function Search({
                       )}
                     </div>
                     <div>
-                      <div className="text-xs text-muted-foreground">Resume</div>
+                      <div className="text-xs text-muted-foreground">
+                        Resume
+                      </div>
                       {p.resumeUrl ? (
                         <a className="break-all underline" href={p.resumeUrl}>
                           {p.resumeUrl}
@@ -245,7 +269,11 @@ export default async function Search({
                   </div>
                   <div className="sm:col-span-2">
                     <div className="text-xs text-muted-foreground">Created</div>
-                    <div>{p.createdAt ? new Date(p.createdAt).toLocaleString() : "-"}</div>
+                    <div>
+                      {p.createdAt
+                        ? new Date(p.createdAt).toLocaleString()
+                        : "-"}
+                    </div>
                   </div>
                 </div>
               </div>

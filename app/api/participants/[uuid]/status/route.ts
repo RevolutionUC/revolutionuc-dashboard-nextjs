@@ -7,7 +7,10 @@ import { db } from "@/lib/db";
 import { participants } from "@/lib/db/schema";
 import { isParticipantStatus } from "@/lib/participant-status";
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ uuid: string }> }) {
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ user_id: string }> },
+) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -16,7 +19,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ uuid: 
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const { uuid } = await params;
+  const { user_id } = await params;
 
   let body: unknown;
   try {
@@ -39,12 +42,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ uuid: 
       checkedIn,
       updatedAt: new Date(),
     })
-    .where(eq(participants.uuid, uuid))
-    .returning({ uuid: participants.uuid })
+    .where(eq(participants.user_id, user_id))
+    .returning({ user_id: participants.user_id })
     .then((r) => r[0]);
 
   if (!updated) {
-    return NextResponse.json({ message: "Participant not found" }, { status: 404 });
+    return NextResponse.json(
+      { message: "Participant not found" },
+      { status: 404 },
+    );
   }
 
   return NextResponse.json({ ok: true });
