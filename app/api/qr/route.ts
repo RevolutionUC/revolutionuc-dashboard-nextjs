@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     const [participant] = await db
       .select({
-        uuid: participants.uuid,
+        uuid: participants.user_id,
         firstName: participants.firstName,
         lastName: participants.lastName,
         email: participants.email,
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
         dietRestrictions: participants.dietRestrictions,
       })
       .from(participants)
-      .where(eq(participants.uuid, participantId))
+      .where(eq(participants.user_id, participantId))
       .limit(1);
 
     if (!participant) {
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     const [participant] = await db
       .select()
       .from(participants)
-      .where(eq(participants.uuid, participantId))
+      .where(eq(participants.user_id, participantId))
       .limit(1);
 
     if (!participant) {
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       await db
         .update(participants)
         .set({ checkedIn: true, updatedAt: new Date() })
-        .where(eq(participants.uuid, participantId));
+        .where(eq(participants.user_id, participantId));
 
       return NextResponse.json({
         message: "Checked in successfully",

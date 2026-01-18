@@ -14,7 +14,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 
 function toPositiveInt(value: string | string[] | undefined, fallback: number) {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -41,7 +41,7 @@ export default async function Search({
   const [rows, totalRow] = await Promise.all([
     db
       .select({
-        uuid: participants.uuid,
+        user_id: participants.user_id,
         firstName: participants.firstName,
         lastName: participants.lastName,
         email: participants.email,
@@ -49,7 +49,7 @@ export default async function Search({
         age: participants.age,
         gender: participants.gender,
         school: participants.school,
-        graduationYear: participants.graduationYear,
+        // graduationYear: participants.graduationYear,
         levelOfStudy: participants.levelOfStudy,
         country: participants.country,
         major: participants.major,
@@ -102,7 +102,39 @@ export default async function Search({
 
         <ParticipantsSearchBox initialQuery={q} />
       </div>
+      <div className="mt-6 mb-6">
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                href={hasPrev ? pageHrefWithQuery(safePage - 1) : "#"}
+                className={!hasPrev ? "pointer-events-none opacity-50" : undefined}
+              />
+            </PaginationItem>
 
+            <PaginationItem>
+              <PaginationLink isActive href={pageHrefWithQuery(safePage)}>
+                {safePage}
+              </PaginationLink>
+            </PaginationItem>
+
+            {safePage + 1 <= totalPages ? (
+              <PaginationItem>
+                <PaginationLink href={pageHrefWithQuery(safePage + 1)}>
+                  {safePage + 1}
+                </PaginationLink>
+              </PaginationItem>
+            ) : null}
+
+            <PaginationItem>
+              <PaginationNext
+                href={hasNext ? pageHrefWithQuery(safePage + 1) : "#"}
+                className={!hasNext ? "pointer-events-none opacity-50" : undefined}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      </div>
       {/* Responsive list with dropdown details (mobile + web) */}
       <div className="grid gap-3 md:grid-cols-2">
         {rows.length === 0 ? (
@@ -111,7 +143,7 @@ export default async function Search({
           </div>
         ) : (
           rows.map((p) => (
-            <details key={p.uuid} className="group overflow-hidden rounded-lg border">
+            <details key={p.user_id} className="group overflow-hidden rounded-lg border">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">
@@ -127,7 +159,7 @@ export default async function Search({
                     {(p.checkedIn ? "Checked in" : "Not checked in") + " ·"}
                   </span>
                   <ParticipantStatusMenu
-                    participantId={p.uuid}
+                    participantId={p.user_id}
                     currentStatus={isParticipantStatus(p.status) ? p.status : "PENDING"}
                   />
                 </div>
@@ -151,10 +183,7 @@ export default async function Search({
                     <div className="text-xs text-muted-foreground">Gender</div>
                     <div className="wrap-break-word">{p.gender}</div>
                   </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">Grad year</div>
-                    <div>{p.graduationYear}</div>
-                  </div>
+
                   <div>
                     <div className="text-xs text-muted-foreground">Level</div>
                     <div className="wrap-break-word">{p.levelOfStudy}</div>
@@ -220,40 +249,6 @@ export default async function Search({
             </details>
           ))
         )}
-      </div>
-
-      <div className="mt-6">
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                href={hasPrev ? pageHrefWithQuery(safePage - 1) : "#"}
-                className={!hasPrev ? "pointer-events-none opacity-50" : undefined}
-              />
-            </PaginationItem>
-
-            <PaginationItem>
-              <PaginationLink isActive href={pageHrefWithQuery(safePage)}>
-                {safePage}
-              </PaginationLink>
-            </PaginationItem>
-
-            {safePage + 1 <= totalPages ? (
-              <PaginationItem>
-                <PaginationLink href={pageHrefWithQuery(safePage + 1)}>
-                  {safePage + 1}
-                </PaginationLink>
-              </PaginationItem>
-            ) : null}
-
-            <PaginationItem>
-              <PaginationNext
-                href={hasNext ? pageHrefWithQuery(safePage + 1) : "#"}
-                className={!hasNext ? "pointer-events-none opacity-50" : undefined}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
       </div>
     </main>
   );

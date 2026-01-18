@@ -3,7 +3,7 @@ export type ScannerMode = "checkin" | "workshop" | "food";
 export type ScanStatus = "idle" | "scanning" | "success" | "error";
 
 export interface Participant {
-  uuid: string;
+  user_id: string;
   firstName: string;
   lastName: string;
   email: string;

@@ -102,7 +102,7 @@ export default function QRScannerPage() {
     setIsProcessing(true);
     try {
       await registerScan(
-        participant.uuid,
+        participant.user_id,
         mode,
         mode !== "checkin" ? selectedEventId : undefined,
       );
