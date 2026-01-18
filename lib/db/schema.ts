@@ -16,8 +16,12 @@ export const user = pgTable("user", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("emailVerified").notNull(),
   image: text("image"),
-  createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("createdAt", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const session = pgTable(
@@ -26,7 +30,9 @@ export const session = pgTable(
     id: text("id").primaryKey(),
     expiresAt: timestamp("expiresAt", { withTimezone: true }).notNull(),
     token: text("token").notNull().unique(),
-    createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("createdAt", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     updatedAt: timestamp("updatedAt", { withTimezone: true }).notNull(),
     ipAddress: text("ipAddress"),
     userAgent: text("userAgent"),
@@ -57,7 +63,9 @@ export const account = pgTable(
     }),
     scope: text("scope"),
     password: text("password"),
-    createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("createdAt", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     updatedAt: timestamp("updatedAt", { withTimezone: true }).notNull(),
   },
   (table) => [index("account_userId_idx").on(table.userId)],
@@ -70,8 +78,12 @@ export const verification = pgTable(
     identifier: text("identifier").notNull(),
     value: text("value").notNull(),
     expiresAt: timestamp("expiresAt", { withTimezone: true }).notNull(),
-    createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updatedAt", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("createdAt", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updatedAt", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
@@ -80,12 +92,14 @@ export const verification = pgTable(
 // RevolutionUC Application Tables
 // ============================================
 
-export const participantStatus = pgEnum("participant_status", [...PARTICIPANT_STATUSES]);
+export const participantStatus = pgEnum("participant_status", [
+  ...PARTICIPANT_STATUSES,
+]);
 
 export const participants = pgTable(
   "participants",
   {
-    user_id: uuid("uuid").primaryKey().defaultRandom(),
+    user_id: uuid("user_id").primaryKey().defaultRandom(),
     // userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
     firstName: text("first_name").notNull(),
     lastName: text("last_name").notNull(),
@@ -109,8 +123,12 @@ export const participants = pgTable(
     qrBase64: text("qr_base64"),
     status: participantStatus("status").notNull().default("PENDING"),
     checkedIn: boolean("checked_in").default(false),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     index("participants_email_idx").on(table.email),
@@ -130,8 +148,12 @@ export const events = pgTable(
     endTime: timestamp("end_time", { withTimezone: true }),
     location: text("location"),
     capacity: integer("capacity"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [index("events_type_idx").on(table.eventType)],
 );
@@ -147,7 +169,9 @@ export const eventRegistrations = pgTable(
     eventId: uuid("event_id")
       .notNull()
       .references(() => events.id, { onDelete: "cascade" }),
-    registeredAt: timestamp("registered_at", { withTimezone: true }).notNull().defaultNow(),
+    registeredAt: timestamp("registered_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     index("event_registrations_participant_idx").on(table.user_id),
