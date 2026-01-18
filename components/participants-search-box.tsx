@@ -29,7 +29,12 @@ export function ParticipantsSearchBox({
       const currentQs = searchParams.toString();
       const params = new URLSearchParams(currentQs);
 
+      const currentQuery = searchParams.get("q") ?? "";
       const next = value.trim();
+
+      // Only update if the query value has actually changed
+      if (currentQuery === next) return;
+
       if (next.length > 0) params.set("q", next);
       else params.delete("q");
 
