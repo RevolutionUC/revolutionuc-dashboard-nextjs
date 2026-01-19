@@ -8,7 +8,7 @@ const publicRoutes = ["/sign-in", "/sign-up", "/error"];
 // API routes that should be accessible without auth
 const publicApiRoutes = ["/api/auth"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public routes
