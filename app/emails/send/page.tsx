@@ -2,59 +2,53 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { emailTemplates, type EmailTemplateMeta } from "@/lib/templates";
-import { Send, X, Plus, Mail, ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { emailTemplates } from "@/lib/templates";
+import { PARTICIPANT_STATUSES } from "@/lib/participant-status";
+
+type RecipientType = "all" | "minors" | "status" | "specific";
 
 export default function EmailSendPage() {
-  const [selectedTemplate, setSelectedTemplate] =
-    useState<EmailTemplateMeta | null>(null);
-  const [recipients, setRecipients] = useState<string[]>([]);
-  const [currentRecipient, setCurrentRecipient] = useState("");
-  const [customSubject, setCustomSubject] = useState("");
-  const [customBody, setCustomBody] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [recipientType, setRecipientType] = useState<RecipientType>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [specificEmails, setSpecificEmails] = useState<string>("");
   const [isSending, setIsSending] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
 
-  const handleSelectTemplate = (template: EmailTemplateMeta) => {
-    setSelectedTemplate(template);
-    setCustomSubject(template.subject);
-    setCustomBody("");
-    setStatusMessage(null);
-  };
-
-  const handleAddRecipient = () => {
-    const email = currentRecipient.trim().toLowerCase();
-    if (email && isValidEmail(email) && !recipients.includes(email)) {
-      setRecipients([...recipients, email]);
-      setCurrentRecipient("");
-    }
-  };
-
-  const handleRemoveRecipient = (email: string) => {
-    setRecipients(recipients.filter((r) => r !== email));
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleAddRecipient();
-    }
-  };
-
-  const isValidEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
-
   const handleSendEmails = async () => {
-    if (!selectedTemplate || recipients.length === 0) {
+    if (!selectedTemplateId) {
       setStatusMessage({
         type: "error",
-        text: "Please select a template and add at least one recipient.",
+        text: "Please select a template.",
+      });
+      return;
+    }
+
+    if (recipientType === "status" && !selectedStatus) {
+      setStatusMessage({
+        type: "error",
+        text: "Please select a participant status.",
+      });
+      return;
+    }
+
+    if (recipientType === "specific" && !specificEmails.trim()) {
+      setStatusMessage({
+        type: "error",
+        text: "Please enter at least one email address.",
       });
       return;
     }
@@ -67,19 +61,25 @@ export default function EmailSendPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          templateId: selectedTemplate.id,
-          subject: customSubject,
-          body: customBody,
-          recipients,
+          templateId: selectedTemplateId,
+          recipientType,
+          status: recipientType === "status" ? selectedStatus : undefined,
+          specificEmails:
+            recipientType === "specific"
+              ? specificEmails.split(",").map((e) => e.trim()).filter(Boolean)
+              : undefined,
         }),
       });
 
       if (response.ok) {
+        const data = await response.json();
         setStatusMessage({
           type: "success",
-          text: `Emails queued for ${recipients.length} recipient(s)!`,
+          text: data.message || "Emails sent successfully!",
         });
-        setRecipients([]);
+        if (recipientType === "specific") {
+          setSpecificEmails("");
+        }
       } else {
         const data = await response.json();
         setStatusMessage({
@@ -99,171 +99,120 @@ export default function EmailSendPage() {
 
   return (
     <main className="p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-        <div className="flex items-center gap-4">
-          <Link href="/emails">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="size-4" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Send Emails</h1>
-            <p className="text-muted-foreground">
-              Select a template and send to your recipients.
-            </p>
-          </div>
+      <div className="max-w-2xl mx-auto space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">Send Emails</h1>
+          <p className="text-muted-foreground">
+            Send email
+          </p>
         </div>
 
-        <div className="grid gap-8 md:grid-cols-2">
-          {/* Template Selection */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Select Template</h2>
-            <div className="grid gap-3">
+        {/* Template Selection */}
+        <div className="space-y-3">
+          <Label htmlFor="template">Template</Label>
+          <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+            <SelectTrigger id="template">
+              <SelectValue placeholder="Choose a template to send" />
+            </SelectTrigger>
+            <SelectContent>
               {emailTemplates.map((template) => (
-                <button
-                  key={template.id}
-                  type="button"
-                  onClick={() => handleSelectTemplate(template)}
-                  className={`text-left p-4 rounded-lg border transition-all ${
-                    selectedTemplate?.id === template.id
-                      ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                      : "border-border hover:border-primary/50 hover:bg-accent/50"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <Mail className="size-5 mt-0.5 text-muted-foreground" />
-                    <div className="flex-1">
-                      <h3 className="font-medium">{template.name}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {template.description}
-                      </p>
-                    </div>
-                  </div>
-                </button>
+                <SelectItem key={template.id} value={template.id}>
+                  {template.name}
+                </SelectItem>
               ))}
-            </div>
-          </div>
-
-          {/* Compose Section */}
-          <div className="space-y-6">
-            {/* Recipients */}
-            <div className="space-y-3">
-              <h2 className="text-lg font-semibold">Recipients</h2>
-              <div className="flex gap-2">
-                <Input
-                  type="email"
-                  placeholder="Enter email address"
-                  value={currentRecipient}
-                  onChange={(e) => setCurrentRecipient(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  onClick={handleAddRecipient}
-                  variant="outline"
-                  size="icon"
-                  disabled={
-                    !currentRecipient.trim() ||
-                    !isValidEmail(currentRecipient.trim())
-                  }
-                >
-                  <Plus className="size-4" />
-                </Button>
-              </div>
-
-              {recipients.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {recipients.map((email) => (
-                    <span
-                      key={email}
-                      className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary text-secondary-foreground text-sm"
-                    >
-                      {email}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveRecipient(email)}
-                        className="hover:text-destructive transition-colors"
-                      >
-                        <X className="size-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No recipients added yet.
-                </p>
-              )}
-            </div>
-
-            {/* Custom Fields (for Custom Email template) */}
-            {selectedTemplate?.id === "custom" && (
-              <div className="space-y-4">
-                <h2 className="text-lg font-semibold">Customize Email</h2>
-                <div className="rounded-lg border bg-card p-4 space-y-4">
-                  <div className="space-y-2">
-                    <label htmlFor="subject" className="text-sm font-medium">
-                      Subject
-                    </label>
-                    <Input
-                      id="subject"
-                      value={customSubject}
-                      onChange={(e) => setCustomSubject(e.target.value)}
-                      placeholder="Email subject"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="body" className="text-sm font-medium">
-                      Message
-                    </label>
-                    <textarea
-                      id="body"
-                      value={customBody}
-                      onChange={(e) => setCustomBody(e.target.value)}
-                      rows={6}
-                      className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                      placeholder="Enter your message..."
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Status Message */}
-            {statusMessage && (
-              <div
-                className={`p-4 rounded-lg ${
-                  statusMessage.type === "success"
-                    ? "bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20"
-                    : "bg-destructive/10 text-destructive border border-destructive/20"
-                }`}
-              >
-                {statusMessage.text}
-              </div>
-            )}
-
-            {/* Send Button */}
-            <Button
-              onClick={handleSendEmails}
-              disabled={
-                !selectedTemplate || recipients.length === 0 || isSending
-              }
-              className="w-full"
-              size="lg"
-            >
-              {isSending ? (
-                "Sending..."
-              ) : (
-                <>
-                  <Send className="size-4" />
-                  Send to {recipients.length} recipient
-                  {recipients.length !== 1 ? "s" : ""}
-                </>
-              )}
-            </Button>
-          </div>
+            </SelectContent>
+          </Select>
         </div>
+
+        {/* Recipient Selection */}
+        <div className="space-y-4">
+          <Label>Choose recipients</Label>
+          <RadioGroup
+            value={recipientType}
+            onValueChange={(value: string) => setRecipientType(value as RecipientType)}
+          >
+            {/* All participants */}
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="all" id="all" />
+              <Label htmlFor="all" className="font-normal cursor-pointer">
+                All participants
+              </Label>
+            </div>
+
+            {/* Minors-only */}
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="minors" id="minors" />
+              <Label htmlFor="minors" className="font-normal cursor-pointer">
+                Minors-only
+              </Label>
+            </div>
+
+            {/* Participants with status */}
+            <div className="flex items-start space-x-2">
+              <RadioGroupItem value="status" id="status" className="mt-1" />
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="status" className="font-normal cursor-pointer">
+                  Participants with status
+                </Label>
+                {recipientType === "status" && (
+                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Choose a status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PARTICIPANT_STATUSES.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {status.charAt(0) + status.slice(1).toLowerCase().replace(/_/g, " ")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
+
+            {/* Specific emails */}
+            <div className="flex items-start space-x-2">
+              <RadioGroupItem value="specific" id="specific" className="mt-1" />
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="specific" className="font-normal cursor-pointer">
+                  Specific emails
+                </Label>
+                {recipientType === "specific" && (
+                  <Input
+                    type="text"
+                    placeholder="email1@example.com, email2@example.com"
+                    value={specificEmails}
+                    onChange={(e) => setSpecificEmails(e.target.value)}
+                    className="w-full"
+                  />
+                )}
+              </div>
+            </div>
+          </RadioGroup>
+        </div>
+
+        {/* Status Message */}
+        {statusMessage && (
+          <div
+            className={`p-4 rounded-lg ${statusMessage.type === "success"
+                ? "bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20"
+                : "bg-destructive/10 text-destructive border border-destructive/20"
+              }`}
+          >
+            {statusMessage.text}
+          </div>
+        )}
+
+        {/* Send Button */}
+        <Button
+          onClick={handleSendEmails}
+          disabled={isSending || !selectedTemplateId}
+          className="w-full"
+          size="lg"
+        >
+          {isSending ? "Sending..." : "Send emails"}
+        </Button>
       </div>
     </main>
   );
