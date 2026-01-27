@@ -173,7 +173,7 @@ export default async function Search({
                   <ParticipantStatusMenu
                     participantId={p.user_id}
                     currentStatus={
-                      isParticipantStatus(p.status) ? p.status : "PENDING"
+                      isParticipantStatus(p.status) ? p.status : "REGISTERED"
                     }
                   />
                 </div>
