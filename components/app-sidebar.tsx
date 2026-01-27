@@ -14,7 +14,7 @@ import {
 // Menu items.
 const items = [
   {
-    title: "Dasboard",
+    title: "Dashboard",
     url: "/dashboard",
     icon: Home,
   },
@@ -27,6 +27,11 @@ const items = [
   {
     title: "Search",
     url: "/search",
+    icon: Search,
+  },
+  {
+    title: "Plan",
+    url: "/plan",
     icon: Search,
   },
 ];
