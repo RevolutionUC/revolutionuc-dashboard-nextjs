@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Mail, Eye, Send } from "lucide-react";
 import Link from "next/link";
+import { emailTemplates } from "@/lib/templates";
 
 export default function EmailsPage() {
   return (
@@ -61,8 +62,7 @@ export default function EmailsPage() {
             <div className="space-y-1">
               <h3 className="font-medium">Available Templates</h3>
               <p className="text-sm text-muted-foreground">
-                You have 3 email templates configured: Welcome Email,
-                Application Accepted, and Custom Email.
+                You have {emailTemplates.length} email templates configured.
               </p>
             </div>
           </div>

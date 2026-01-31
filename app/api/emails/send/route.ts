@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
 
         const mailgunDomain = process.env.MAILGUN_DOMAIN || "";
         const fromEmail =
-            process.env.MAILGUN_FROM_EMAIL || "noreply@revolutionuc.com";
+            process.env.MAILGUN_FROM_EMAIL || "info@revolutionuc.com";
 
         // Validate Mailgun configuration
         if (!process.env.MAILGUN_API_KEY || !process.env.MAILGUN_DOMAIN) {
@@ -160,54 +160,76 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Process each recipient
-        const results = [];
+        // Render template once using Mailgun recipient variable placeholder
+        const [html, text] = await Promise.all([
+            renderTemplateToHtml(templateId, {
+                name: "%recipient.name%",
+                firstName: "%recipient.name%",
+                subject: emailSubject,
+                body,
+            }),
+            renderTemplateToText(templateId, {
+                name: "%recipient.name%",
+                firstName: "%recipient.name%",
+                subject: emailSubject,
+                body,
+            }),
+        ]);
+
+        if (!html || !text) {
+            return NextResponse.json(
+                { error: "Failed to render email template" },
+                { status: 500 },
+            );
+        }
+
+        // Build recipient variables map
+        const recipientVariables: Record<string, { name: string }> = {};
         for (const recipient of recipients) {
-            const recipientName = extractNameFromEmail(recipient);
+            recipientVariables[recipient] = {
+                name: extractNameFromEmail(recipient),
+            };
+        }
 
-            // Render the template
-            const html = await renderTemplateToHtml(templateId, {
-                name: recipientName,
-                subject: emailSubject,
-                body,
-            });
+        // Send in batches of 1000 (Mailgun's limit)
+        const BATCH_SIZE = 1000;
+        const results = [];
 
-            const text = await renderTemplateToText(templateId, {
-                name: recipientName,
-                subject: emailSubject,
-                body,
-            });
-
-            if (!html || !text) {
-                console.error(`Failed to render template for ${recipient}`);
-                results.push({
-                    email: recipient,
-                    success: false,
-                    error: "Failed to render template",
-                });
-                continue;
+        for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+            const batch = recipients.slice(i, i + BATCH_SIZE);
+            const batchVariables: Record<string, { name: string }> = {};
+            for (const email of batch) {
+                batchVariables[email] = recipientVariables[email];
             }
 
             try {
-                // Send email via Mailgun
                 const response = await mg.messages.create(mailgunDomain, {
                     from: fromEmail,
-                    to: [recipient],
+                    to: batch,
                     subject: emailSubject,
                     html: html,
                     text: text,
+                    "recipient-variables": JSON.stringify(batchVariables),
                 });
 
-                console.log(`Email sent to ${recipient}:`, response.id);
+                console.log(
+                    `Batch ${Math.floor(i / BATCH_SIZE) + 1} sent (${batch.length} recipients):`,
+                    response.id,
+                );
                 results.push({
-                    email: recipient,
+                    batch: Math.floor(i / BATCH_SIZE) + 1,
+                    count: batch.length,
                     success: true,
                     messageId: response.id,
                 });
             } catch (error) {
-                console.error(`Failed to send email to ${recipient}:`, error);
+                console.error(
+                    `Batch ${Math.floor(i / BATCH_SIZE) + 1} failed:`,
+                    error,
+                );
                 results.push({
-                    email: recipient,
+                    batch: Math.floor(i / BATCH_SIZE) + 1,
+                    count: batch.length,
                     success: false,
                     error:
                         error instanceof Error
