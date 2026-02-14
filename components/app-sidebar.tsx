@@ -1,4 +1,4 @@
-import { Home, Inbox, Search } from "lucide-react";
+import { Gavel, Home, Inbox, Search } from "lucide-react";
 
 import {
   Sidebar,
@@ -33,6 +33,11 @@ const items = [
     title: "Plan",
     url: "/plan",
     icon: Search,
+  },
+  {
+    title: "Judges & Categories",
+    url: "/judges-and-categories",
+    icon: Gavel,
   },
 ];
 
