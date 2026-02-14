@@ -340,3 +340,27 @@ export const submissions = pgTable(
     index("submissions_category_idx").on(table.categoryId),
   ],
 );
+
+// ============================================
+// Assignment Tables (Project to Judge Group)
+// ============================================
+
+export const assignments = pgTable(
+  "assignments",
+  {
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    judgeGroupId: integer("judge_group_id")
+      .notNull()
+      .references(() => judgeGroups.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.judgeGroupId, table.projectId] }),
+    index("assignments_project_idx").on(table.projectId),
+    index("assignments_judge_group_idx").on(table.judgeGroupId),
+  ],
+);
