@@ -14,6 +14,7 @@ import { EditCategoryModal } from "./edit-category-modal";
 import { EditJudgeModal } from "./edit-judge-modal";
 import { NewCategoryModal } from "./new-category-modal";
 import { NewJudgeModal } from "./new-judge-modal";
+import { AssignJudgesToGroupsButton } from "./assign-judges-button";
 
 export default async function JudgeAndCategoriesPage() {
   const [allCategories, allJudges, allJudgeGroups] = await Promise.all([
@@ -120,6 +121,7 @@ export default async function JudgeAndCategoriesPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Judges ({allJudges.length})</CardTitle>
+            <AssignJudgesToGroupsButton />
             <NewJudgeModal categories={allCategories} />
           </CardHeader>
           <CardContent>
