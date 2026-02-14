@@ -8,6 +8,7 @@ import {
   judges,
   projects,
 } from "@/lib/db/schema";
+import { AssignSubmissionsButton } from "./assign-submissions-button";
 
 export default async function AssignmentsPage() {
   // Fetch all assignments with judge group and project info
@@ -92,6 +93,10 @@ export default async function AssignmentsPage() {
         <p className="text-sm text-muted-foreground">
           View project assignments to judge groups
         </p>
+      </div>
+
+      <div className="mb-6">
+        <AssignSubmissionsButton />
       </div>
 
       {judgeGroupsList.length === 0 ? (
