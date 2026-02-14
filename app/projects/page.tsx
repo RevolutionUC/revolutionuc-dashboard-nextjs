@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -8,10 +9,56 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { db } from "@/lib/db";
-import { projects } from "@/lib/db/schema";
+import { categories, projects, submissions } from "@/lib/db/schema";
+import { ImportProjectsModal } from "./import-projects-modal";
+
+interface ProjectWithCategories {
+  id: string;
+  name: string;
+  status: string;
+  url: string | null;
+  location: string;
+  location2: string;
+  disqualifyReason: string | null;
+  categoryId: string | null;
+}
 
 export default async function ProjectsPage() {
-  const allProjects = await db.select().from(projects).orderBy(projects.name);
+  const projectRows = await db
+    .select({
+      id: projects.id,
+      name: projects.name,
+      status: projects.status,
+      url: projects.url,
+      location: projects.location,
+      location2: projects.location2,
+      disqualifyReason: projects.disqualifyReason,
+      categoryId: submissions.categoryId,
+    })
+    .from(projects)
+    .leftJoin(submissions, eq(projects.id, submissions.projectId))
+    .orderBy(projects.name);
+
+  // Group by project
+  const projectsMap = projectRows.reduce(
+    (acc, row) => {
+      if (!acc[row.id]) {
+        acc[row.id] = {
+          ...row,
+          categories: row.categoryId ? [row.categoryId] : [],
+        };
+      } else if (row.categoryId) {
+        acc[row.id].categories.push(row.categoryId);
+      }
+      return acc;
+    },
+    {} as Record<
+      string,
+      Omit<ProjectWithCategories, "categoryId"> & { categories: string[] }
+    >,
+  );
+
+  const allProjects = Object.values(projectsMap);
 
   return (
     <main className="mx-auto w-full max-w-6xl p-6">
@@ -25,6 +72,7 @@ export default async function ProjectsPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>All Projects ({allProjects.length})</CardTitle>
+          <ImportProjectsModal projectsCount={allProjects.length} />
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
@@ -34,6 +82,7 @@ export default async function ProjectsPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Location</TableHead>
+                  <TableHead>Categories</TableHead>
                   <TableHead>URL</TableHead>
                   <TableHead>Disqualify Reason</TableHead>
                 </TableRow>
@@ -42,7 +91,7 @@ export default async function ProjectsPage() {
                 {allProjects.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={6}
                       className="text-center text-muted-foreground"
                     >
                       No projects found
@@ -72,6 +121,24 @@ export default async function ProjectsPage() {
                             {project.location2}
                           </div>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {project.categories.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {project.categories.map((catId) => (
+                              <span
+                                key={catId}
+                                className="inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800"
+                              >
+                                {catId}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            No categories
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {project.url ? (
