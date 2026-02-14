@@ -1,4 +1,11 @@
-import { FolderKanban, Gavel, Home, Inbox, Search } from "lucide-react";
+import {
+  ClipboardList,
+  FolderKanban,
+  Gavel,
+  Home,
+  Inbox,
+  Search,
+} from "lucide-react";
 
 import {
   Sidebar,
@@ -43,6 +50,11 @@ const items = [
     title: "Projects",
     url: "/projects",
     icon: FolderKanban,
+  },
+  {
+    title: "Assignments",
+    url: "/assignments",
+    icon: ClipboardList,
   },
 ];
 
