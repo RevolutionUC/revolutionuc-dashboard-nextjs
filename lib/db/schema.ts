@@ -1,3 +1,4 @@
+import { relations } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -237,6 +238,12 @@ export const categories = pgTable(
   (table) => [index("categories_type_idx").on(table.type)],
 );
 
+export const categoriesRelations = relations(categories, ({ many }) => ({
+  judgeGroups: many(judgeGroups),
+  judges: many(judges),
+  evaluations: many(evaluations),
+}));
+
 export const judgeGroups = pgTable(
   "judge_groups",
   {
@@ -260,6 +267,15 @@ export const judgeGroups = pgTable(
     index("judge_groups_name_idx").on(table.name),
   ],
 );
+
+export const judgeGroupsRelations = relations(judgeGroups, ({ one, many }) => ({
+  category: one(categories, {
+    fields: [judgeGroups.categoryId],
+    references: [categories.id],
+  }),
+  judges: many(judges),
+  assignments: many(assignments),
+}));
 
 export const judges = pgTable(
   "judges",
@@ -288,6 +304,18 @@ export const judges = pgTable(
     index("judges_group_idx").on(table.judgeGroupId),
   ],
 );
+
+export const judgesRelations = relations(judges, ({ one, many }) => ({
+  category: one(categories, {
+    fields: [judges.categoryId],
+    references: [categories.id],
+  }),
+  judgeGroup: one(judgeGroups, {
+    fields: [judges.judgeGroupId],
+    references: [judgeGroups.id],
+  }),
+  evaluations: many(evaluations),
+}));
 
 // ============================================
 // Project Tables
@@ -320,6 +348,12 @@ export const projects = pgTable(
     index("projects_location_idx").on(table.location),
   ],
 );
+
+export const projectsRelations = relations(projects, ({ many }) => ({
+  submissions: many(submissions),
+  assignments: many(assignments),
+  evaluations: many(evaluations),
+}));
 
 export const submissions = pgTable(
   "submissions",
@@ -364,3 +398,46 @@ export const assignments = pgTable(
     index("assignments_judge_group_idx").on(table.judgeGroupId),
   ],
 );
+
+// ============================================
+// Evaluation Table (Judge scoring for projects)
+// ============================================
+
+export const evaluations = pgTable(
+  "evaluations",
+  {
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    judgeId: uuid("judge_id")
+      .notNull()
+      .references(() => judges.id, { onDelete: "cascade" }),
+    categoryId: text("category_id")
+      .notNull()
+      .references(() => categories.id, { onDelete: "cascade" }),
+    scores: integer("scores").array(),
+    categoryRelevance: integer("category_relevance").notNull().default(0),
+    bordaScore: integer("borda_score").notNull().default(0),
+  },
+  (table) => [
+    primaryKey({ columns: [table.judgeId, table.projectId] }),
+    index("evaluations_project_idx").on(table.projectId),
+    index("evaluations_judge_idx").on(table.judgeId),
+    index("evaluations_category_idx").on(table.categoryId),
+  ],
+);
+
+export const evaluationsRelations = relations(evaluations, ({ one }) => ({
+  project: one(projects, {
+    fields: [evaluations.projectId],
+    references: [projects.id],
+  }),
+  judge: one(judges, {
+    fields: [evaluations.judgeId],
+    references: [judges.id],
+  }),
+  category: one(categories, {
+    fields: [evaluations.categoryId],
+    references: [categories.id],
+  }),
+}));

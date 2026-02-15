@@ -5,6 +5,7 @@ import {
   Home,
   Inbox,
   Search,
+  TrendingUp,
 } from "lucide-react";
 
 import {
@@ -55,6 +56,11 @@ const items = [
     title: "Assignments",
     url: "/assignments",
     icon: ClipboardList,
+  },
+  {
+    title: "Scorings",
+    url: "/scorings",
+    icon: TrendingUp,
   },
 ];
 
